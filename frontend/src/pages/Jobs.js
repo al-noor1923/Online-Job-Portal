@@ -11,10 +11,19 @@ const Jobs = () => {
   const [viewMode, setViewMode] = useState('all');
   const [applying, setApplying] = useState(null);
 
+  // --- NEW: sorting state ---
+  // '', 'salary_asc', 'salary_desc'
+  const [sort, setSort] = useState('');
+
+  // If you decide to add pagination later, you can wire these too:
+  // const [page, setPage] = useState(1);
+  // const limit = 20;
+
   useEffect(() => {
-    console.log('🔄 Jobs component mounted, fetching jobs...');
+    console.log('🔄 Jobs component mounted/updated, fetching jobs...');
     fetchJobs();
-  }, [viewMode, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, user, sort]);
 
   const fetchJobs = async () => {
     try {
@@ -24,20 +33,31 @@ const Jobs = () => {
       console.log('📡 Making API call to fetch jobs...');
       console.log('View mode:', viewMode);
       console.log('User role:', user?.role);
-      
+      console.log('Sort:', sort || '(default newest)');
+
       let response;
+
       if (viewMode === 'my-jobs' && user?.role === 'recruiter') {
         console.log('📡 Calling getMyJobs()');
-        response = await getMyJobs();
+        response = await getMyJobs(); // unchanged
       } else {
-        console.log('📡 Calling getAllJobs()');
-        response = await getAllJobs();
+        console.log('📡 Calling getAllJobs()', { sort });
+        // IMPORTANT: getAllJobs should forward these as query params to /api/jobs
+        response = await getAllJobs({
+          sort, 
+          // page, 
+          // limit,
+          // When you switch salary to numeric fields, you can add:
+          // minSalary, maxSalary
+        });
       }
       
       console.log('📋 Raw API response:', response);
       
       if (response && response.success) {
-        const jobsData = response.data || [];
+        // Your /api/jobs returns { success, data: items, meta: {...} }
+        // Other endpoints may return { success, data: [...] }
+        const jobsData = Array.isArray(response.data) ? response.data : [];
         console.log('✅ Jobs data received:', jobsData);
         console.log('📊 Number of jobs:', jobsData.length);
         
@@ -92,7 +112,7 @@ const Jobs = () => {
   };
 
   console.log('🖥️ Rendering Jobs component...');
-  console.log('Current state - Loading:', loading, 'Jobs count:', jobs.length, 'Error:', error);
+  console.log('Current state - Loading:', loading, 'Jobs count:', jobs.length, 'Error:', error, 'Sort:', sort);
 
   if (loading) {
     return (
@@ -108,7 +128,31 @@ const Jobs = () => {
         <h1>
           {viewMode === 'my-jobs' ? 'My Posted Jobs' : 'Browse All Jobs'} ({jobs.length})
         </h1>
+
         <div className="header-actions">
+          {/* --- NEW: Salary sort dropdown (only visible on "All Jobs" view) --- */}
+          {viewMode !== 'my-jobs' && (
+            <div className="sort-control" style={{ marginRight: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>Sort</span>
+                <select
+                  value={sort}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    console.log('↕️ Sort changed:', v);
+                    setSort(v);
+                    // If you add pagination later, also reset page to 1 here
+                    // setPage(1);
+                  }}
+                >
+                  <option value="">Default (Newest)</option>
+                  <option value="salary_asc">Salary: Low → High</option>
+                  <option value="salary_desc">Salary: High → Low</option>
+                </select>
+              </label>
+            </div>
+          )}
+
           {user?.role === 'recruiter' && (
             <>
               <div className="view-toggle">
@@ -149,6 +193,7 @@ const Jobs = () => {
         <p>✅ Component rendered successfully</p>
         <p>👤 User role: {user?.role || 'Not logged in'}</p>
         <p>👁️ View mode: {viewMode}</p>
+        <p>↕️ Sort: {sort || 'Default (Newest)'}</p>
         <p>📊 Jobs loaded: {jobs.length}</p>
         <p>⚠️ Error: {error || 'None'}</p>
         <p>🔄 Loading: {loading ? 'Yes' : 'No'}</p>

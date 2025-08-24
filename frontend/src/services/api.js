@@ -4,9 +4,7 @@ const API_BASE_URL = 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
 
 // Add token to requests
@@ -18,7 +16,9 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Authentication API calls
+/* =========================================================
+   AUTH
+========================================================= */
 export const register = async (userData) => {
   try {
     const response = await api.post('/auth/register', userData);
@@ -46,13 +46,16 @@ export const getCurrentUser = async () => {
   }
 };
 
-// Job API calls
-export const getAllJobs = async () => {
+/* =========================================================
+   JOBS
+========================================================= */
+// ⬇️ Modified: accepts optional query params (e.g., { sort, page, limit, minSalary, maxSalary })
+export const getAllJobs = async (params = {}) => {
   try {
-    console.log('📡 Making API call to: /jobs');
-    const response = await api.get('/jobs');
+    console.log('📡 Making API call to: /jobs with params =>', params);
+    const response = await api.get('/jobs', { params });
     console.log('📋 API response received:', response);
-    return response.data;
+    return response.data; // { success, data, meta }
   } catch (error) {
     console.error('❌ API call failed:', error);
     console.error('Error details:', error.response?.data);
@@ -118,7 +121,9 @@ export const getJobDetails = async (id) => {
   }
 };
 
-// Application API calls
+/* =========================================================
+   APPLICATIONS
+========================================================= */
 export const applyForJob = async (jobId, coverLetter) => {
   try {
     const response = await api.post('/applications/apply', { jobId, coverLetter });
@@ -154,5 +159,22 @@ export const updateApplicationStatus = async (id, status) => {
     throw error.response?.data || error.message;
   }
 };
+// ===== CV (Resume) API =====
+export const getMyCVs = async () => (await api.get('/cv/my')).data;
+export const createCV = async (cv) => (await api.post('/cv', cv)).data;
+export const updateCV = async (id, cv) => (await api.put(`/cv/${id}`, cv)).data;
+export const deleteCV = async (id) => (await api.delete(`/cv/${id}`)).data;
+
+// ===== Profile (job seeker) =====
+export const getProfile = async () => {
+  const res = await api.get('/auth/profile');
+  return res.data; // { success, data: { user } }
+};
+
+export const updateProfile = async (payload) => {
+  const res = await api.put('/auth/profile', payload);
+  return res.data; // { success, message, data: { user } }
+};
+
 
 export default api;

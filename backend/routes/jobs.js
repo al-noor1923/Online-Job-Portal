@@ -6,46 +6,60 @@ import { authenticateToken, requireRecruiter } from '../middleware/auth.js';
 const router = express.Router();
 
 // GET all jobs (accessible to everyone) - Browse Jobs
+// GET all jobs (accessible to everyone) - Browse Jobs with sorting/filtering
 router.get('/', async (req, res) => {
   try {
-    console.log('🔍 Fetching all jobs...');
-    
-    // Let's temporarily get ALL jobs without any filters to debug
-    const allJobs = await Job.find()
-      .populate('recruiter', 'name company email')
-      .sort({ createdAt: -1 });
-    
-    console.log(`📋 Total jobs in database: ${allJobs.length}`);
-    
-    // Log each job for debugging
-    allJobs.forEach((job, index) => {
-      console.log(`Job ${index + 1}:`);
-      console.log(`  - Title: ${job.title}`);
-      console.log(`  - Company: ${job.company}`);
-      console.log(`  - Status: ${job.status}`);
-      console.log(`  - Deadline: ${job.applicationDeadline}`);
-      console.log(`  - Is deadline future?: ${job.applicationDeadline ? new Date(job.applicationDeadline) > new Date() : 'No deadline'}`);
-      console.log(`  - Created: ${job.createdAt}`);
-      console.log('---');
-    });
-    
-    // For now, return ALL jobs regardless of status or deadline
-    res.json({ 
-      success: true, 
-      data: allJobs,
-      debug: {
-        totalJobs: allJobs.length,
-        message: 'Returning all jobs without filters for debugging'
+    console.log('🔍 Fetching jobs with filters...');
+
+    const { sort, minSalary, maxSalary, page = 1, limit = 20 } = req.query;
+
+    // Build salary filter
+    const filter = {};
+    if (minSalary || maxSalary) {
+      filter.salary = {};
+      if (minSalary && !Number.isNaN(Number(minSalary))) {
+        filter.salary.$gte = Number(minSalary);
       }
+      if (maxSalary && !Number.isNaN(Number(maxSalary))) {
+        filter.salary.$lte = Number(maxSalary);
+      }
+    }
+
+    // Build sort order
+    let sortObj = { createdAt: -1 }; // default: newest first
+    if (sort === 'salary_asc') sortObj = { salary: 1 };
+    if (sort === 'salary_desc') sortObj = { salary: -1 };
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Query DB
+    const [items, total] = await Promise.all([
+      Job.find(filter)
+        .populate('recruiter', 'name company email')
+        .sort(sortObj)
+        .skip(skip)
+        .limit(Number(limit)),
+      Job.countDocuments(filter),
+    ]);
+
+    res.json({
+      success: true,
+      data: items,
+      meta: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / limit),
+        sort: sort || 'createdAt_desc',
+        filterApplied: filter,
+      },
     });
   } catch (error) {
     console.error('❌ Error fetching jobs:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 // Temporary route to create test jobs - REMOVE IN PRODUCTION
 router.post('/create-sample-jobs', async (req, res) => {
@@ -347,5 +361,6 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 export default router;

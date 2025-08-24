@@ -2,7 +2,7 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { authenticateToken } from '../middleware/auth.js';
-
+import { authenticateToken, requireJobSeeker } from './middleware/auth.js';
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -178,26 +178,63 @@ router.post('/login', async (req, res) => {
 });
 
 // Get current user profile
-router.get('/profile', authenticateToken, (req, res) => {
-  const userData = {
-    id: req.user._id,
-    name: req.user.name,
-    email: req.user.email,
-    phone: req.user.phone,
-    role: req.user.role
-  };
+// Get current user profile (full for job seeker)
+router.get('/profile', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).lean();
 
-  if (req.user.role === 'recruiter') {
-    userData.company = req.user.company;
-    userData.companyDescription = req.user.companyDescription;
-    userData.website = req.user.website;
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const base = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      address: user.address,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+
+    if (user.role === 'recruiter') {
+      return res.json({
+        success: true,
+        data: {
+          user: {
+            ...base,
+            company: user.company,
+            companyDescription: user.companyDescription,
+            website: user.website
+          }
+        }
+      });
+    }
+
+    // job_seeker → send expanded profile
+    return res.json({
+      success: true,
+      data: {
+        user: {
+          ...base,
+          dateOfBirth: user.dateOfBirth,
+          skills: user.skills || [],
+          experience: user.experience || '',
+          education: user.education || '',
+          expertise: user.expertise || [],
+          hobbies: user.hobbies || [],
+          experienceEntries: user.experienceEntries || [],
+          educationEntries: user.educationEntries || [],
+          resume: user.resume || ''
+        }
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
-
-  res.json({
-    success: true,
-    data: { user: userData }
-  });
 });
+
 
 // Temporary route to fix user roles - REMOVE IN PRODUCTION
 router.post('/fix-user-role', async (req, res) => {

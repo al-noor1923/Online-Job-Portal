@@ -93,3 +93,6 @@ app.get('/', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
 });
+
+import cvRoutes from './routes/cv.js';
+app.use('/api/cv', cvRoutes);

@@ -12,7 +12,6 @@ const Home = () => {
 
   return (
     <div className="home-page">
-      {/* Debug info box - Remove after fixing */}
       <div style={{ 
         background: '#f0f8ff', 
         padding: '1rem', 
@@ -20,12 +19,6 @@ const Home = () => {
         borderRadius: '5px',
         border: '1px solid #ccc'
       }}>
-        <strong>Debug User Info:</strong>
-        <p>✅ User logged in: {user ? 'Yes' : 'No'}</p>
-        <p>👤 User name: {user?.name || 'Not found'}</p>
-        <p>🏷️ User role: {user?.role || 'Not found'}</p>
-        <p>🏢 User company: {user?.company || 'Not found'}</p>
-        <p>📧 User email: {user?.email || 'Not found'}</p>
       </div>
 
       <header className="hero-section">

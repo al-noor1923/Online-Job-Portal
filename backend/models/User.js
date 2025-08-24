@@ -26,6 +26,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+
   // Role field with job seeker and recruiter options
   role: {
     type: String,
@@ -33,15 +34,16 @@ const userSchema = new mongoose.Schema({
     required: true,
     default: 'job_seeker'
   },
+
   // Job seeker specific fields
   dateOfBirth: {
     type: Date,
-    required: function() { 
+    required: function () {
       console.log('🔍 Checking dateOfBirth requirement for role:', this.role);
-      return this.role === 'job_seeker'; 
+      return this.role === 'job_seeker';
     },
     validate: {
-      validator: function(value) {
+      validator: function (value) {
         if (this.role === 'job_seeker') {
           if (!value) return false;
           const today = new Date();
@@ -58,25 +60,38 @@ const userSchema = new mongoose.Schema({
       message: 'Age must be between 16 and 100 years for job seekers'
     }
   },
-  skills: [{
-    type: String
+
+  // existing lightweight fields
+  skills: [{ type: String }],
+  experience: { type: String, default: '' }, // summary string (kept for compatibility)
+  education: { type: String, default: '' }, // summary string (kept for compatibility)
+  resume: { type: String, default: '' },
+
+  // 🔹 NEW: richer profile structure for job seekers
+  expertise: [{ type: String }], // e.g., React, Node.js, System Design
+  hobbies: [{ type: String }],   // e.g., Reading, Football
+
+  experienceEntries: [{
+    company: { type: String, default: '' },
+    role: { type: String, default: '' },
+    startDate: { type: Date },
+    endDate: { type: Date },
+    present: { type: Boolean, default: false },
+    bullets: [{ type: String }]
   }],
-  experience: {
-    type: String,
-    default: ''
-  },
-  education: {
-    type: String,
-    default: ''
-  },
-  resume: {
-    type: String,
-    default: ''
-  },
+
+  educationEntries: [{
+    school: { type: String, default: '' },
+    degree: { type: String, default: '' },
+    startDate: { type: Date },
+    endDate: { type: Date },
+    gpa: { type: String, default: '' }
+  }],
+
   // Recruiter specific fields
   company: {
     type: String,
-    required: function() { return this.role === 'recruiter'; }
+    required: function () { return this.role === 'recruiter'; }
   },
   companyDescription: {
     type: String,
@@ -91,7 +106,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Virtual to calculate age
-userSchema.virtual('age').get(function() {
+userSchema.virtual('age').get(function () {
   if (!this.dateOfBirth) return null;
   const today = new Date();
   const birthDate = new Date(this.dateOfBirth);
@@ -104,14 +119,14 @@ userSchema.virtual('age').get(function() {
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
 // Compare password method
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
