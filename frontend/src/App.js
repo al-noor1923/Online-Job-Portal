@@ -12,17 +12,15 @@ import Applications from './pages/Applications';
 import Login from './components/Login';
 import Register from './components/Register';
 
-import CVBuilder from './pages/CVBuilder';         // NEW: CV builder page
-import UpdateProfile from './pages/UpdateProfile'; // NEW: Update profile page
+import CVBuilder from './pages/CVBuilder';
+import UpdateProfile from './pages/UpdateProfile';
+import MyProfile from './pages/MyProfile';
+import ContactUs from './pages/ContactUs'; // ADD THIS IMPORT
 
 import './App.css';
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
-
-  // Debug: Log user info in navbar
-  console.log('🔍 Navbar Debug - User:', user);
-  console.log('🔍 Navbar Debug - Is authenticated:', isAuthenticated);
 
   const handleLogout = () => {
     logout();
@@ -38,13 +36,15 @@ const Navbar = () => {
           <>
             <Link to="/">Home</Link>
             <Link to="/jobs">Browse Jobs</Link>
+            <Link to="/me">My Profile</Link>
+            <Link to="/contact">Contact Us</Link> {/* ADD THIS LINE */}
 
             {/* Job Seeker Only Links */}
             {user?.role === 'job_seeker' && (
               <>
                 <Link to="/applications">My Applications</Link>
-                <Link to="/profile">Update Profile</Link>   {/* NEW */}
-                <Link to="/cv-builder">Create CV</Link>      {/* NEW */}
+                <Link to="/profile">Update Profile</Link>
+                <Link to="/cv-builder">Create CV</Link>
               </>
             )}
 
@@ -56,10 +56,13 @@ const Navbar = () => {
               </>
             )}
 
-            {/* Debug info in navbar */}
-            <span style={{ fontSize: '0.8rem', color: '#999' }}>
-              [Debug: {user?.role || 'no-role'}]
-            </span>
+            {/* Admin Only Links */}
+            {user?.role === 'admin' && (
+              <>
+                <Link to="/admin">Admin Dashboard</Link>
+                <Link to="/admin/users">Manage Users</Link>
+              </>
+            )}
 
             <span className="user-info">
               Welcome, {user?.name} (
@@ -67,6 +70,8 @@ const Navbar = () => {
                 ? 'Job Seeker'
                 : user?.role === 'recruiter'
                 ? 'Recruiter'
+                : user?.role === 'admin'
+                ? 'Admin'
                 : 'Unknown Role'}
               )
             </span>
@@ -76,6 +81,7 @@ const Navbar = () => {
           <>
             <Link to="/login">Login</Link>
             <Link to="/register">Register</Link>
+            <Link to="/contact">Contact Us</Link> {/* ADD THIS LINE TOO */}
           </>
         )}
       </div>
@@ -96,22 +102,24 @@ const AppContent = () => {
 
       <main className="main-content">
         <Routes>
-          {/* Public routes */}
+          {/* Public routes - Available to everyone */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/contact" element={<ContactUs />} /> {/* ADD THIS ROUTE */}
 
           {isAuthenticated ? (
             <>
               {/* Common authenticated routes */}
               <Route path="/" element={<Home />} />
               <Route path="/jobs" element={<Jobs />} />
+              <Route path="/me" element={<MyProfile />} />
 
               {/* Job Seeker Only Routes */}
               {user?.role === 'job_seeker' && (
                 <>
                   <Route path="/applications" element={<Applications />} />
-                  <Route path="/profile" element={<UpdateProfile />} />  {/* NEW */}
-                  <Route path="/cv-builder" element={<CVBuilder />} />   {/* NEW */}
+                  <Route path="/profile" element={<UpdateProfile />} />
+                  <Route path="/cv-builder" element={<CVBuilder />} />
                 </>
               )}
 
@@ -122,6 +130,15 @@ const AppContent = () => {
                   <Route path="/jobs/add" element={<AddJob />} />
                   <Route path="/jobs/update/:id" element={<UpdateJob />} />
                   <Route path="/jobs/:jobId/applications" element={<JobApplications />} />
+                  <Route path="/profile" element={<UpdateProfile />} />
+                </>
+              )}
+
+              {/* Admin Only Routes */}
+              {user?.role === 'admin' && (
+                <>
+                  <Route path="/admin" element={<div>Admin Dashboard Coming Soon</div>} />
+                  <Route path="/admin/users" element={<div>User Management Coming Soon</div>} />
                 </>
               )}
 

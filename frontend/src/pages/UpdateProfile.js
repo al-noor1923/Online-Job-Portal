@@ -210,7 +210,7 @@ export default function UpdateProfile() {
         </div>
 
         <div className="form-group">
-          <label>Skills (comma-separated)</label>
+          <label>Skills</label>
           <input
             className="cv-input"
             value={form.skills.join(', ')}
@@ -219,7 +219,7 @@ export default function UpdateProfile() {
         </div>
 
         <div className="form-group">
-          <label>Expertise (comma-separated)</label>
+          <label>Expertise</label>
           <input
             className="cv-input"
             value={form.expertise.join(', ')}
@@ -228,7 +228,7 @@ export default function UpdateProfile() {
         </div>
 
         <div className="form-group">
-          <label>Hobbies (comma-separated)</label>
+          <label>Hobbies</label>
           <input
             className="cv-input"
             value={form.hobbies.join(', ')}

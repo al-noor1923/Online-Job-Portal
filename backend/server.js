@@ -18,6 +18,12 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// In your main server.js or app.js file
+import adminRoutes from './routes/admin.js';
+
+// Add this line after your other route imports
+app.use('/api/admin', adminRoutes);
+
 // Connect to MongoDB
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/jobportal';
 
@@ -96,3 +102,8 @@ app.listen(PORT, () => {
 
 import cvRoutes from './routes/cv.js';
 app.use('/api/cv', cvRoutes);
+
+// In your main server.js or app.js
+import contactRoutes from './routes/contact.js';
+
+app.use('/api/contact', contactRoutes);

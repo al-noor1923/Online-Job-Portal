@@ -1,8 +1,9 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import { authenticateToken } from '../middleware/auth.js';
-import { authenticateToken, requireJobSeeker } from './middleware/auth.js';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { authenticateToken, requireJobSeeker } from '../middleware/auth.js';
+
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -13,7 +14,6 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 };
 
-// Register user (job seeker or recruiter)
 // Register user (job seeker or recruiter)
 router.post('/register', async (req, res) => {
   try {
@@ -119,7 +119,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-
 // Login user
 router.post('/login', async (req, res) => {
   try {
@@ -177,8 +176,65 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Get current user profile
-// Get current user profile (full for job seeker)
+// NEW: GET /auth/me - Get current user profile (for MyProfile page)
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).lean();
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Remove password from response
+    delete user.password;
+
+    // Format response with consistent structure
+    const userData = {
+      id: user._id,
+      _id: user._id, // Keep both for compatibility
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      address: user.address,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+
+    // Add role-specific fields
+    if (user.role === 'recruiter') {
+      userData.company = user.company;
+      userData.companyDescription = user.companyDescription;
+      userData.website = user.website;
+    } else if (user.role === 'job_seeker') {
+      userData.dateOfBirth = user.dateOfBirth;
+      userData.skills = user.skills || [];
+      userData.experience = user.experience || '';
+      userData.education = user.education || '';
+      userData.expertise = user.expertise || [];
+      userData.hobbies = user.hobbies || [];
+      userData.experienceEntries = user.experienceEntries || [];
+      userData.educationEntries = user.educationEntries || [];
+      userData.resume = user.resume || '';
+    }
+
+    res.json({
+      success: true,
+      data: { user: userData }
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error retrieving profile'
+    });
+  }
+});
+
+// Get current user profile (existing route for compatibility)
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).lean();
@@ -235,7 +291,6 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
-
 // Temporary route to fix user roles - REMOVE IN PRODUCTION
 router.post('/fix-user-role', async (req, res) => {
   try {
@@ -279,5 +334,103 @@ router.post('/fix-user-role', async (req, res) => {
     });
   }
 });
+
+// Update user profile
+router.put('/profile', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user._id; // Fix: use _id instead of id
+    const allowedFields = ['name', 'phone', 'address', 'dateOfBirth', 'skills', 'expertise', 'hobbies', 'experience', 'education', 'resume', 'experienceEntries', 'educationEntries'];
+    const updates = {};
+
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    });
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updates, { new: true });
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Remove password from response
+    const safeUser = updatedUser.toObject();
+    delete safeUser.password;
+
+    res.json({ success: true, data: { user: safeUser } });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ success: false, message: 'Server error updating profile' });
+  }
+});
+
+// POST /auth/change-password - Change user password
+router.post('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    const userId = req.user._id;
+
+    // Validation
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required'
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New passwords do not match'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    // Get user with password field
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Hash new password
+    const saltRounds = 10;
+    const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update password
+    await User.findByIdAndUpdate(userId, { 
+      password: hashedNewPassword 
+    });
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error changing password'
+    });
+  }
+});
+
 
 export default router;
