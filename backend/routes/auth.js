@@ -1,9 +1,11 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
-import { authenticateToken } from '../middleware/auth.js';
-import { authenticateToken, requireJobSeeker } from './middleware/auth.js';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
+import { authenticateToken, requireJobSeeker } from '../middleware/auth.js';
+
 const router = express.Router();
+
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
