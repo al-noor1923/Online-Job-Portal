@@ -16,6 +16,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Add response interceptor to handle token expiry
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 403) {
+      const message = error.response.data?.message || '';
+      if (message.includes('expired') || message.includes('invalid')) {
+        // Token expired, logout user
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+        return Promise.reject(new Error('Session expired. Please log in again.'));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 /* =========================================================
    AUTH
 ========================================================= */
@@ -46,10 +64,20 @@ export const getCurrentUser = async () => {
   }
 };
 
+// Get current user profile for MyProfile page
+export const getMyProfile = async () => {
+  try {
+    const response = await api.get('/auth/me');
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch user profile:', error);
+    throw error.response?.data || error.message;
+  }
+};
+
 /* =========================================================
    JOBS
 ========================================================= */
-// ⬇️ Modified: accepts optional query params (e.g., { sort, page, limit, minSalary, maxSalary })
 export const getAllJobs = async (params = {}) => {
   try {
     console.log('📡 Making API call to: /jobs with params =>', params);
@@ -138,6 +166,7 @@ export const getMyApplications = async () => {
     const response = await api.get('/applications/my-applications');
     return response.data;
   } catch (error) {
+    console.error('Failed to fetch applications:', error);
     throw error.response?.data || error.message;
   }
 };
@@ -159,22 +188,107 @@ export const updateApplicationStatus = async (id, status) => {
     throw error.response?.data || error.message;
   }
 };
-// ===== CV (Resume) API =====
-export const getMyCVs = async () => (await api.get('/cv/my')).data;
-export const createCV = async (cv) => (await api.post('/cv', cv)).data;
-export const updateCV = async (id, cv) => (await api.put(`/cv/${id}`, cv)).data;
-export const deleteCV = async (id) => (await api.delete(`/cv/${id}`)).data;
 
-// ===== Profile (job seeker) =====
+/* =========================================================
+   CV (Resume) API
+========================================================= */
+export const getMyCVs = async () => {
+  try {
+    const response = await api.get('/cv/my');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+export const createCV = async (cv) => {
+  try {
+    const response = await api.post('/cv', cv);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+export const updateCV = async (id, cv) => {
+  try {
+    const response = await api.put(`/cv/${id}`, cv);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+export const deleteCV = async (id) => {
+  try {
+    const response = await api.delete(`/cv/${id}`);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+/* =========================================================
+   PROFILE API
+========================================================= */
 export const getProfile = async () => {
-  const res = await api.get('/auth/profile');
-  return res.data; // { success, data: { user } }
+  try {
+    const response = await api.get('/auth/profile');
+    return response.data; // { success, data: { user } }
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
 };
 
 export const updateProfile = async (payload) => {
-  const res = await api.put('/auth/profile', payload);
-  return res.data; // { success, message, data: { user } }
+  try {
+    const response = await api.put('/auth/profile', payload);
+    return response.data; // { success, message, data: { user } }
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
 };
+
+// Change password
+export const changePassword = async (passwordData) => {
+  try {
+    const response = await api.post('/auth/change-password', passwordData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// Contact form submission
+export const submitContactForm = async (contactData) => {
+  try {
+    const response = await api.post('/contact', contactData);
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// Get all contacts (Admin only)
+export const getAllContacts = async (params = {}) => {
+  try {
+    const response = await api.get('/contact', { params });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
+// Update contact status (Admin only)
+export const updateContactStatus = async (contactId, status) => {
+  try {
+    const response = await api.put(`/contact/${contactId}/status`, { status });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error.message;
+  }
+};
+
 
 
 export default api;

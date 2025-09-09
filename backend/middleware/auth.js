@@ -3,7 +3,7 @@ import User from '../models/User.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// Middleware to verify token
+// Middleware to verify token and attach user to req
 export const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -17,18 +17,33 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(decoded.userId);
-    
+    console.log('Decoded JWT payload:', decoded);
+
+    // Try common user ID fields in token
+    const userId = decoded.userId || decoded.id || decoded._id;
+    console.log('Extracted userId from token:', userId);
+
+    if (!userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Invalid token payload: user ID missing'
+      });
+    }
+
+    const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({
+      console.log('User not found in DB for ID:', userId);
+      return res.status(403).json({
         success: false,
         message: 'User not found'
       });
     }
 
+    console.log('Authenticated user:', user.name, 'Role:', user.role);
     req.user = user;
     next();
   } catch (error) {
+    console.error('Authentication error:', error);
     return res.status(403).json({
       success: false,
       message: 'Invalid or expired token'
